@@ -10,3 +10,5 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
 endif()
 
 # TODO: Add tests and install targets if needed.
+add_subdirectory(external/glfw ${CMAKE_CURRENT_BINARY_DIR}/glfw)
+target_link_libraries(GameEngine PRIVATE glfw)
