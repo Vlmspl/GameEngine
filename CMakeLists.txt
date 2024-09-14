@@ -13,3 +13,5 @@ project ("GameEngine")
 
 # Include sub-projects.
 add_subdirectory ("GameEngine")
+
+target_include_directories(GameEngine PUBLIC ${PROJECT_SOURCE_DIR}/include)
