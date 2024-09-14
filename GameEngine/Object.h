@@ -6,9 +6,6 @@ public:
 	glm::vec3 Rotation;
 	glm::vec3 Scale;
 
-#include <glm/vec3.hpp>
-
-#include <glm/vec3.hpp>
 
     glm::vec3 Vertex[36] = {
         // Front face (2 triangles)
