@@ -1,19 +1,18 @@
 #version 460 core
 
 layout(location = 0) in vec3 vPos;  // Vertex position attribute
-layout(location = 1) in vec3 vCol;  // Vertex color attribute
+layout(location = 1) in vec3 vUv;  // Vertex color attribute
 
 uniform float u_time;    // Time uniform
 uniform mat4 u_projection; // Projection matrix uniform
 uniform mat4 u_view; // View matrix uniform
 
-out vec3 fragColor;  // Output color to the fragment shader
-out float CoordZ;
+out vec2 uv;  // Output color to the fragment shader
 
 void main()
 {
     // Pass the vertex color to the fragment shader
-    fragColor = vCol;
+    uv = vUv;
 
     vec3 offset = vec3(0, 0, -2);
 

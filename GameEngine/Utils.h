@@ -1,4 +1,6 @@
 #include <fstream>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 std::string ReadShaderCode(const std::string& path) {
     std::ifstream file(path, std::ios::in | std::ios::binary);
@@ -67,7 +69,7 @@ glm::vec3 CalculateNewRotation(GLFWwindow* window, glm::vec3 oldRotation, float 
 
 typedef struct Vertex {
     glm::vec3 pos;
-    glm::vec3 col;
+    glm::vec2 uv;
 };
 
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
@@ -82,4 +84,41 @@ void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
 
     // Handle input
     // (You can use xoffset and yoffset to adjust camera orientation here)
+}
+
+// Function to load a texture
+GLuint LoadTextureFromFile(const char* filePath) {
+    GLuint textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+
+    int width, height, channels;
+    // Load image using stb_image
+    unsigned char* data = stbi_load(filePath, &width, &height, &channels, 4);  // 4 for RGBA
+    if (data == nullptr) {
+        std::cerr << "Failed to load image: " << filePath << std::endl;
+        return 0;
+    }
+
+    // Upload texture to OpenGL
+    glTexImage2D(GL_TEXTURE_2D,
+        0,
+        GL_RGBA,        // Internal format
+        width,
+        height,
+        0,
+        GL_RGBA,        // Format
+        GL_UNSIGNED_BYTE,  // Type
+        data);
+
+    // Set texture parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // Free the image memory
+    stbi_image_free(data);
+
+    return textureID;
 }
