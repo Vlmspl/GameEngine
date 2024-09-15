@@ -22,3 +22,16 @@ add_subdirectory(external/glfw ${CMAKE_CURRENT_BINARY_DIR}/glfw)
 
 target_link_libraries(GameEngine PRIVATE glfw ${OPENGL_gl_LIBRARY}) #${OPENGL_glu_LIBRARY} glu32)
 target_include_directories(GameEngine PUBLIC ${PROJECT_SOURCE_DIR}/include PUBLIC glad/include)
+
+# Define the path to the Shaders directory within the GameEngine folder
+set(SHADERS_DIR "${CMAKE_SOURCE_DIR}/GameEngine/Shaders")
+
+# Define the path to the build directory
+set(BUILD_DIR "${CMAKE_BINARY_DIR}")
+
+# Debugging output to check paths
+message(STATUS "Source directory for shaders: ${SHADERS_DIR}")
+message(STATUS "Build directory: ${BUILD_DIR}")
+
+# Copy the Shaders directory directly to the build directory
+file(COPY ${SHADERS_DIR} DESTINATION ${BUILD_DIR}/GameEngine)

@@ -1,14 +1,19 @@
-#version 330 core
+#version 460 core
 
-layout (location = 0) in vec3 aPos; // Vertex position
+layout(location = 0) in vec3 vPos;  // Vertex position attribute
+layout(location = 1) in vec3 vCol;  // Vertex color attribute
 
-out vec3 vertexColor; // Output color for fragment shader
+uniform float u_time; // Time uniform
+
+out vec3 fragColor;  // Output color to the fragment shader
 
 void main()
 {
-    // Pass the position as the color (normalized between -1 and 1)
-    vertexColor = (aPos + vec3(1.0)) * 0.5;
-    
+    // Pass the vertex color to the fragment shader
+    fragColor = vCol;
+
+    vec3 offset = vec3(0, sin(u_time+vPos.x)*0.5, 0);
+
     // Set the vertex position
-    gl_Position = vec4(aPos, 1.0);
+    gl_Position = vec4(vPos + offset, 1.0);
 }
