@@ -2,6 +2,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 #include <vector>
+#include <unordered_map>
+#include <functional>
 
 std::string ReadShaderCode(const std::string& path) {
     std::ifstream file(path, std::ios::in | std::ios::binary);
@@ -151,7 +153,7 @@ GLuint loadTexture(const char* filename, GLenum ActiveTexture, GLint FilterType,
     return texture;
 }
 
-void checkShaderCompileErrors(GLuint shader, const std::string& type) {
+void checkShaderCompileErrors(GLuint shader, GLenum type) {
     GLint success;
     GLchar infoLog[1024];
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
@@ -205,5 +207,133 @@ void parseOBJ(const std::string& path, std::vector<Vertex>& vertices, std::vecto
 
 class Shader {
 public:
-    Shader(std::string Path) {}
+    GLuint shader;
+
+    Shader(std::string Path, GLenum Type) {
+        std::string CodeStr = ReadShaderCode(Path);
+        Code = CodeStr.c_str();
+
+        shader = glCreateShader(Type);
+        glShaderSource(shader, 1, &Code, NULL);
+        glCompileShader(shader);
+        checkShaderCompileErrors(shader, Type);
+    }
+private:
+    const char* Code;
+};
+
+class ShaderProgram {
+public:
+    GLuint program = glCreateProgram();
+
+    ShaderProgram() {}
+
+    // Attach shader to the program
+    void AttachShader(const Shader& shader) {
+        glAttachShader(program, shader.shader);
+    }
+
+    // Link the shader program
+    void Link() {
+        glLinkProgram(program);
+        checkLinkingErrors();
+    }
+
+    // Use the shader program and update any bound uniforms
+    void use() {
+        glUseProgram(program);
+        // Update uniforms with bound lambda functions
+        for (const auto& updater : uniformUpdaters) {
+            updater.second();  // Call the bound lambda
+        }
+    }
+
+    // Get uniform location by name and store it in the hash table
+    GLint GetUniformLocation(const std::string& name) {
+        if (uniformLocations.find(name) != uniformLocations.end()) {
+            return uniformLocations[name];
+        }
+        GLint location = glGetUniformLocation(program, name.c_str());
+        if (location == -1) {
+            std::cerr << "Warning: Uniform '" << name << "' not found!" << std::endl;
+        }
+        uniformLocations[name] = location;  // Cache the location
+        return location;
+    }
+
+    // Set uniform by location
+    void SetUniform(GLint location, float value) {
+        if (location != -1) {
+            glUniform1f(location, value);
+        }
+    }
+
+    // Set uniform by name (utilizes the hash table)
+    void SetUniform(const std::string& name, float value) {
+        GLint location = GetUniformLocation(name);
+        SetUniform(location, value);
+    }
+
+    // Bind a uniform updater by location
+    void BindUniformUpdater(GLint location, std::function<void()> updater) {
+        if (location != -1) {
+            uniformUpdaters[location] = updater;
+        }
+    }
+
+    // Bind a uniform updater by name
+    void BindUniformUpdater(const std::string& name, std::function<void()> updater) {
+        GLint location = GetUniformLocation(name);
+        BindUniformUpdater(location, updater);
+    }
+
+    // --- Attribute Handling ---
+
+    // Get attribute location by name and store it in the hash table
+    GLint GetAttributeLocation(const std::string& name) {
+        if (attributeLocations.find(name) != attributeLocations.end()) {
+            return attributeLocations[name];  // Return cached location if it exists
+        }
+        GLint location = glGetAttribLocation(program, name.c_str());  // Fetch from OpenGL
+        if (location == -1) {
+            std::cerr << "Warning: Attribute '" << name << "' not found!" << std::endl;
+        }
+        attributeLocations[name] = location;  // Cache the location
+        return location;  // Return the location
+    }
+
+
+    void SetAttribute(GLuint vao, GLint attribLocation, GLuint index, GLenum type, GLint size, GLboolean normalized, GLsizei stride, const void* pointer) {
+        // Bind the Vertex Array Object
+        glBindVertexArray(vao);
+
+        // Enable the vertex attribute array
+        glEnableVertexAttribArray(attribLocation);
+
+        // Set the vertex attribute pointer
+        glVertexAttribPointer(attribLocation, size, type, normalized, stride, pointer);
+
+        // Unbind the Vertex Array Object (optional)
+        glBindVertexArray(0);
+    }
+
+private:
+    // Hash table to store uniform locations
+    std::unordered_map<std::string, GLint> uniformLocations;
+    // Hash table to store lambda functions that update uniforms
+    std::unordered_map<GLint, std::function<void()>> uniformUpdaters;
+
+    // Hash table to store attribute locations
+    std::unordered_map<std::string, GLint> attributeLocations;
+
+    // Check for shader program linking errors
+    void checkLinkingErrors() {
+        GLint success;
+        GLchar infoLog[1024];
+        glGetProgramiv(program, GL_LINK_STATUS, &success);
+        if (!success) {
+            glGetProgramInfoLog(program, 1024, nullptr, infoLog);
+            std::cerr << "ERROR::PROGRAM_LINKING_ERROR\n" << infoLog << std::endl;
+        }
+    }
 };

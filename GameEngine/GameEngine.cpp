@@ -52,57 +52,38 @@ int main() {
 
 
 
-    std::string vertexCodeStr = ReadShaderCode("Assets/Shaders/TestShader.vert");
-    std::string fragmentCodeStr = ReadShaderCode("Assets/Shaders/TestShader.frag");
-
-    const char* VertexCode = vertexCodeStr.c_str();
-    const char* FragmentCode = fragmentCodeStr.c_str();
+    
 
     GLuint vertex_buffer;
     glGenBuffers(1, &vertex_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    
 
-    const GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &VertexCode, NULL);
-    glCompileShader(vertex_shader);
-    checkShaderCompileErrors(vertex_shader, "VERTEX");
+    Shader VertexShader("Assets/Shaders/TestShader.vert", GL_VERTEX_SHADER);
+    Shader FragmentShader("Assets/Shaders/TestShader.frag", GL_FRAGMENT_SHADER);
 
-    const GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 1, &FragmentCode, NULL);
-    glCompileShader(fragment_shader);
-    checkShaderCompileErrors(fragment_shader, "FRAGMENT");
+    ShaderProgram program;
+    program.AttachShader(VertexShader);
+    program.AttachShader(FragmentShader);
 
-    const GLuint program = glCreateProgram();
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-    glLinkProgram(program);
+    GLint uprojection_location = program.GetUniformLocation("u_projection");
+    GLint uview_location = program.GetUniformLocation("u_view");
+    GLint utexture_location = program.GetUniformLocation("u_texture");
 
-    const GLint utime_location = glGetUniformLocation(program, "u_time");
-    const GLint uprojection_location = glGetUniformLocation(program, "u_projection");
-    const GLint uview_location = glGetUniformLocation(program, "u_view");
-    const GLint utexture_location = glGetUniformLocation(program, "u_texture");
-
-    const GLint vpos_location = glGetAttribLocation(program, "vPos");
-    const GLint vuv_location = glGetAttribLocation(program, "vUv");
+    GLint pos_location = program.GetAttributeLocation("vPos");
+    GLint uv_location = program.GetAttributeLocation("vUv");
 
     GLuint vertex_array;
     glGenVertexArrays(1, &vertex_array);
-    glBindVertexArray(vertex_array);
-    glEnableVertexAttribArray(vpos_location);
-    glVertexAttribPointer(vpos_location, 3, GL_FLOAT, GL_FALSE,
-        sizeof(Vertex), (void*)offsetof(Vertex, pos));
-    glEnableVertexAttribArray(vuv_location);
-    glVertexAttribPointer(vuv_location, 2, GL_FLOAT, GL_FALSE,
-        sizeof(Vertex), (void*)offsetof(Vertex, uv));
+    program.SetAttribute(vertex_array, pos_location, 0, GL_FLOAT, 3, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, pos));
+    program.SetAttribute(vertex_array, uv_location, 1, GL_FLOAT, 3, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, uv));
+
 
     GLuint element_buffer;
     glGenBuffers(1, &element_buffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-    const float fov = glm::radians(70.0f); // Field of view in radians
     const float nearPlane = 0.1f; // Near clipping plane
     const float farPlane = 10000.0f; // Far clipping plane
 
@@ -119,15 +100,38 @@ int main() {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 
+    float deltaTime;
+    int width, height;
 
     Camera camera = Camera();
 
     float lastFrame = 0;
     GLuint texture = loadTexture("Assets/Textures/texture.png", GL_TEXTURE0, GL_NEAREST, GL_REPEAT);
 
+
+
+    //Uniform Updater:
+    auto updateU_Projection = [&camera, &width, &height, &nearPlane, 
+        &farPlane, &uprojection_location, &uview_location, &utexture_location,
+        &texture]() {
+        //Projection Calculation
+        float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
+        glm::mat4 Projection = glm::perspective(glm::radians(camera.FOV), aspectRatio, nearPlane, farPlane);
+        glUniformMatrix4fv(uprojection_location, 1, GL_FALSE, glm::value_ptr(Projection));
+
+        //View Calculation
+        glUniformMatrix4fv(uview_location, 1, GL_FALSE, glm::value_ptr(camera.GetViewMatrix()));
+
+        //Texture
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glUniform1i(utexture_location, 0);
+    };
+
+    program.BindUniformUpdater("u_projection", updateU_Projection);
+
     while (!glfwWindowShouldClose(window)) {
         float currentFrame = glfwGetTime();
-        float deltaTime = currentFrame - lastFrame;
+        deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
         std::cout << "\nFPS: " << 1.0f / deltaTime;
@@ -135,10 +139,10 @@ int main() {
         // Poll for and process events
         glfwPollEvents();
 
-        int width, height;
+        
         glfwGetFramebufferSize(window, &width, &height);
         const float ratio = width / (float)height;
-        float aspectRatio = static_cast<float>(width) / static_cast<float>(height); // Aspect ratio (width/height)
+        
 
         //Update Stuff:
         glm::vec3 Velocity = GetKeyboardMovement(window, 1);
@@ -153,22 +157,7 @@ int main() {
 
         cursor_position_callback(window, (double)width / 2, (double)height / 2);
 
-        glm::mat4 Perspective = glm::perspective(fov, aspectRatio, nearPlane, farPlane);
-        glm::mat4 View = camera.GetViewMatrix();
-
-        glViewport(0, 0, width, height);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glClearColor(0, 0.5, 0.5, 1.0);
-
-        glUseProgram(program);
-        glUniform1f(utime_location, static_cast<float>(glfwGetTime()));
-
-
-        glUniformMatrix4fv(uprojection_location, 1, GL_FALSE, glm::value_ptr(Perspective));
-        glUniformMatrix4fv(uview_location, 1, GL_FALSE, glm::value_ptr(View));
-
-        glBindTexture(GL_TEXTURE_2D, texture);
-        glUniform1i(utexture_location, 0);
+        program.use();
 
         glBindVertexArray(vertex_array);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
