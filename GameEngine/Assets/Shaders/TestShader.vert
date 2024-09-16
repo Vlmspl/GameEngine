@@ -1,7 +1,7 @@
 #version 460 core
 
 layout(location = 0) in vec3 vPos;  // Vertex position attribute
-layout(location = 1) in vec3 vUv;  // Vertex color attribute
+layout(location = 1) in vec2 vUv;  // Vertex color attribute
 
 uniform float u_time;    // Time uniform
 uniform mat4 u_projection; // Projection matrix uniform

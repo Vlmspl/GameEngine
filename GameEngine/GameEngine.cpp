@@ -9,6 +9,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "Utils.h"
 #include "Camera.h"
+#include "Object.h"
 
 
 int main() {
@@ -37,60 +38,17 @@ int main() {
     gladLoadGL();
 
     static const Vertex vertices[] = {
-        // Front face
-        { { -0.5f, -0.5f,  0.5f }, { 0.0f, 0.0f } }, // Bottom-left
-        { {  0.5f, -0.5f,  0.5f }, { 1.0f, 0.0f } }, // Bottom-right
-        { {  0.5f,  0.5f,  0.5f }, { 1.0f, 1.0f } }, // Top-right
-
-        { { -0.5f, -0.5f,  0.5f }, { 0.0f, 0.0f } }, // Bottom-left
-        { {  0.5f,  0.5f,  0.5f }, { 1.0f, 1.0f } }, // Top-right
-        { { -0.5f,  0.5f,  0.5f }, { 0.0f, 1.0f } }, // Top-left
-
-        // Back face
-        { { -0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f } }, // Bottom-left
-        { {  0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f } }, // Bottom-right
-        { {  0.5f,  0.5f, -0.5f }, { 1.0f, 1.0f } }, // Top-right
-
-        { { -0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f } }, // Bottom-left
-        { {  0.5f,  0.5f, -0.5f }, { 1.0f, 1.0f } }, // Top-right
-        { { -0.5f,  0.5f, -0.5f }, { 0.0f, 1.0f } }, // Top-left
-
-        // Right face
-        { {  0.5f, -0.5f,  0.5f }, { 0.0f, 0.0f } }, // Front-bottom
-        { {  0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f } }, // Back-bottom
-        { {  0.5f,  0.5f, -0.5f }, { 1.0f, 1.0f } }, // Back-top
-
-        { {  0.5f, -0.5f,  0.5f }, { 0.0f, 0.0f } }, // Front-bottom
-        { {  0.5f,  0.5f, -0.5f }, { 1.0f, 1.0f } }, // Back-top
-        { {  0.5f,  0.5f,  0.5f }, { 0.0f, 1.0f } }, // Front-top
-
-        // Left face
-        { { -0.5f, -0.5f,  0.5f }, { 0.0f, 0.0f } }, // Front-bottom
-        { { -0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f } }, // Back-bottom
-        { { -0.5f,  0.5f, -0.5f }, { 1.0f, 1.0f } }, // Back-top
-
-        { { -0.5f, -0.5f,  0.5f }, { 0.0f, 0.0f } }, // Front-bottom
-        { { -0.5f,  0.5f, -0.5f }, { 1.0f, 1.0f } }, // Back-top
-        { { -0.5f,  0.5f,  0.5f }, { 0.0f, 1.0f } }, // Front-top
-
-        // Top face
-        { { -0.5f,  0.5f,  0.5f }, { 0.0f, 0.0f } }, // Front-left
-        { {  0.5f,  0.5f,  0.5f }, { 1.0f, 0.0f } }, // Front-right
-        { {  0.5f,  0.5f, -0.5f }, { 1.0f, 1.0f } }, // Back-right
-
-        { { -0.5f,  0.5f,  0.5f }, { 0.0f, 0.0f } }, // Front-left
-        { {  0.5f,  0.5f, -0.5f }, { 1.0f, 1.0f } }, // Back-right
-        { { -0.5f,  0.5f, -0.5f }, { 0.0f, 1.0f } }, // Back-left
-
-        // Bottom face
-        { { -0.5f, -0.5f,  0.5f }, { 0.0f, 0.0f } }, // Front-left
-        { {  0.5f, -0.5f,  0.5f }, { 1.0f, 0.0f } }, // Front-right
-        { {  0.5f, -0.5f, -0.5f }, { 1.0f, 1.0f } }, // Back-right
-
-        { { -0.5f, -0.5f,  0.5f }, { 0.0f, 0.0f } }, // Front-left
-        { {  0.5f, -0.5f, -0.5f }, { 1.0f, 1.0f } }, // Back-right
-        { { -0.5f, -0.5f, -0.5f }, { 0.0f, 1.0f } }  // Back-left
+        { {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f} },  // Bottom-left
+        { {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f} },  // Bottom-right
+        { {1.0f, 1.0f, 0.0f}, {1.0f, 1.0f} },  // Top-right
+        { {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f} }   // Top-left
     };
+
+    GLuint indices[] = {
+        0, 1, 2,  // First triangle: bottom-left, bottom-right, top-right
+        0, 2, 3   // Second triangle: bottom-left, top-right, top-left
+    };
+
 
 
 
@@ -104,14 +62,17 @@ int main() {
     glGenBuffers(1, &vertex_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
 
     const GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertex_shader, 1, &VertexCode, NULL);
     glCompileShader(vertex_shader);
+    checkShaderCompileErrors(vertex_shader, "VERTEX");
 
     const GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragment_shader, 1, &FragmentCode, NULL);
     glCompileShader(fragment_shader);
+    checkShaderCompileErrors(fragment_shader, "FRAGMENT");
 
     const GLuint program = glCreateProgram();
     glAttachShader(program, vertex_shader);
@@ -133,8 +94,13 @@ int main() {
     glVertexAttribPointer(vpos_location, 3, GL_FLOAT, GL_FALSE,
         sizeof(Vertex), (void*)offsetof(Vertex, pos));
     glEnableVertexAttribArray(vuv_location);
-    glVertexAttribPointer(vuv_location, 3, GL_FLOAT, GL_FALSE,
+    glVertexAttribPointer(vuv_location, 2, GL_FLOAT, GL_FALSE,
         sizeof(Vertex), (void*)offsetof(Vertex, uv));
+
+    GLuint element_buffer;
+    glGenBuffers(1, &element_buffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
     const float fov = glm::radians(70.0f); // Field of view in radians
     const float nearPlane = 0.1f; // Near clipping plane
@@ -157,12 +123,14 @@ int main() {
     Camera camera = Camera();
 
     float lastFrame = 0;
-    GLuint textureID = LoadTextureFromFile("Assets/Textures/texture.png");
+    GLuint texture = loadTexture("Assets/Textures/texture.png", GL_TEXTURE0, GL_NEAREST, GL_REPEAT);
 
     while (!glfwWindowShouldClose(window)) {
         float currentFrame = glfwGetTime();
         float deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+
+        std::cout << "\nFPS: " << 1.0f / deltaTime;
 
         // Poll for and process events
         glfwPollEvents();
@@ -199,19 +167,16 @@ int main() {
         glUniformMatrix4fv(uprojection_location, 1, GL_FALSE, glm::value_ptr(Perspective));
         glUniformMatrix4fv(uview_location, 1, GL_FALSE, glm::value_ptr(View));
 
-        
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, textureID);
+        glBindTexture(GL_TEXTURE_2D, texture);
         glUniform1i(utexture_location, 0);
 
         glBindVertexArray(vertex_array);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         // Swap front and back buffers
         glfwSwapBuffers(window);
 
     }
-
     // Cleanup
     glfwDestroyWindow(window);
     glfwTerminate();

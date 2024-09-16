@@ -8,7 +8,7 @@ uniform sampler2D u_texture;
 
 void main()
 {
-    vec3 Color = texture(Texture, uv).rgb;
+    vec3 Color = texture(u_texture, uv).rgb;
 
     // Set the fragment color based on the depth value
     FragColor = vec4(Color, 1.0);

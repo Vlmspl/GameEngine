@@ -30,7 +30,7 @@ set(ASSETS_DIR "${CMAKE_SOURCE_DIR}/GameEngine/Assets")
 set(BUILD_DIR "${CMAKE_BINARY_DIR}")
 
 # Debugging output to check paths
-message(STATUS "Source directory for shaders: ${SHADERS_DIR}")
+message(STATUS "Source directory for assets: ${ASSETS_DIR}")
 message(STATUS "Build directory: ${BUILD_DIR}")
 
 # Copy the Shaders directory directly to the build directory

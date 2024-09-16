@@ -1,73 +1,33 @@
 #include <glm/glm.hpp>
+#include <array>
 
 class Object {
 public:
-	glm::vec3 Position;
-	glm::vec3 Rotation;
-	glm::vec3 Scale;
+    // Constructor
+    Object(glm::vec3 pos, glm::vec3 rot, glm::vec3 scale, const std::string& path)
+        : Position(pos), Rotation(rot), Scale(scale) {
+        load(path);
+    }
 
+    // Render method
+    void Render() {
+        // Implement rendering logic here
+    }
 
-    glm::vec3 Vertex[36] = {
-        // Front face (2 triangles)
-        glm::vec3(0, 0, 0), // Bottom-left
-        glm::vec3(1, 0, 0), // Bottom-right
-        glm::vec3(1, 1, 0), // Top-right
+private:
+    // Transformations
+    glm::vec3 Position;
+    glm::vec3 Rotation;
+    glm::vec3 Scale;
 
-        glm::vec3(0, 0, 0), // Bottom-left
-        glm::vec3(1, 1, 0), // Top-right
-        glm::vec3(0, 1, 0), // Top-left
+    // Vertices and indices
+    std::vector<Vertex> vertices;
+    std::vector<int> indices;
 
-        // Back face (2 triangles)
-        glm::vec3(0, 0, 1), // Bottom-left
-        glm::vec3(1, 0, 1), // Bottom-right
-        glm::vec3(1, 1, 1), // Top-right
-
-        glm::vec3(0, 0, 1), // Bottom-left
-        glm::vec3(1, 1, 1), // Top-right
-        glm::vec3(0, 1, 1), // Top-left
-
-        // Top face (2 triangles)
-        glm::vec3(0, 1, 0), // Bottom-left
-        glm::vec3(1, 1, 0), // Bottom-right
-        glm::vec3(1, 1, 1), // Top-right
-
-        glm::vec3(0, 1, 0), // Bottom-left
-        glm::vec3(1, 1, 1), // Top-right
-        glm::vec3(0, 1, 1), // Top-left
-
-        // Bottom face (2 triangles)
-        glm::vec3(0, 0, 0), // Bottom-left
-        glm::vec3(1, 0, 0), // Bottom-right
-        glm::vec3(1, 0, 1), // Top-right
-
-        glm::vec3(0, 0, 0), // Bottom-left
-        glm::vec3(1, 0, 1), // Top-right
-        glm::vec3(0, 0, 1), // Top-left
-
-        // Right face (2 triangles)
-        glm::vec3(1, 0, 0), // Bottom-left
-        glm::vec3(1, 1, 0), // Bottom-right
-        glm::vec3(1, 1, 1), // Top-right
-
-        glm::vec3(1, 0, 0), // Bottom-left
-        glm::vec3(1, 1, 1), // Top-right
-        glm::vec3(1, 0, 1), // Top-left
-
-        // Left face (2 triangles)
-        glm::vec3(0, 0, 0), // Bottom-left
-        glm::vec3(0, 1, 0), // Bottom-right
-        glm::vec3(0, 1, 1), // Top-right
-
-        glm::vec3(0, 0, 0), // Bottom-left
-        glm::vec3(0, 1, 1), // Top-right
-        glm::vec3(0, 0, 1)  // Top-left
-    };
-
-
-
-	Object(const glm::vec3& position = glm::vec3(0, 0, 0), const glm::vec3& rotation = glm::vec3(0, 0, 0), const glm::vec3& scale = glm::vec3(1, 1, 1)) {
-		Position = position;
-		Rotation = rotation;
-		Scale = scale;
-	}
+    // Method to load object data
+    void load(const std::string& path) {
+        // Use a function to parse the OBJ file
+        // For example:
+        parseOBJ(path, vertices, indices);
+    }
 };
