@@ -38,10 +38,10 @@ int main() {
 	gladLoadGL();
 
 	static const Vertex vertices[] = {
-		{ {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f} },  // Bottom-left
-		{ {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f} },  // Bottom-right
-		{ {1.0f, 1.0f, 0.0f}, {1.0f, 1.0f} },  // Top-right
-		{ {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f} }   // Top-left
+		{ {2.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 1.0f} },  // Bottom-left
+		{ {3.0f, 0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 1.0f} },  // Bottom-right
+		{ {3.0f, 1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f} },  // Top-right
+		{ {2.0f, 1.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 1.0f} }   // Top-left
 	};
 
 	GLuint indices[] = {
@@ -63,20 +63,40 @@ int main() {
 
 	GLint uprojection_location = program.GetUniformLocation("u_projection");
 	GLint uview_location = program.GetUniformLocation("u_view");
+	GLint umodel_location = program.GetUniformLocation("u_model");
 	GLint utexture_location = program.GetUniformLocation("u_texture");
+	GLint uViewPos_location = program.GetUniformLocation("u_viewPos");
+
+	//Material Struct
+	Material material;
+	material.ambient = glm::vec3(0.2f, 0.2f, 0.2f);  // Low intensity, grayish base color
+	material.diffuse = glm::vec3(0.8f, 0.8f, 0.8f);  // White/Gray diffuse color
+	material.specular = glm::vec3(1.0f, 1.0f, 1.0f); // Full white specular color
+	material.shininess = 32.0f;  // Typical value for smooth surfaces
+
+	GLint materialAmbient_location = program.GetUniformLocation("Material.ambient");
+	GLint materialDiffuse_location = program.GetUniformLocation("Material.diffuse");
+	GLint materialSpecular_location = program.GetUniformLocation("Material.specular");
+	GLint materialShininess_location = program.GetUniformLocation("Material.shininess");
+	//-----------
+	
+	//Light Struct
+	Light light;
+	light.position = glm::vec3(10.0f, 10.0f, 10.0f); // Light source position (e.g., above and to the side)
+	light.ambient = glm::vec3(0.2f, 0.2f, 0.2f);     // Low intensity, grayish light
+	light.diffuse = glm::vec3(1.0f, 1.0f, 1.0f);     // Full intensity white light
+	light.specular = glm::vec3(1.0f, 1.0f, 1.0f);    // Full intensity white specular light
+
+
+	GLint lightPosition_location = program.GetUniformLocation("Light[0].position");
+	GLint lightAmbient_location = program.GetUniformLocation("Light[0].ambient");
+	GLint lightDiffuse_location = program.GetUniformLocation("Light[0].diffuse");
+	GLint lightSpecular_location = program.GetUniformLocation("Light[0].specular");
+	//-----------
 
 	GLint pos_location = program.GetAttributeLocation("vPos");
 	GLint uv_location = program.GetAttributeLocation("vUv");
-
-	/*GLuint vertex_array;
-	glGenVertexArrays(1, &vertex_array);
-	glBindVertexArray(vertex_array);
-	glEnableVertexAttribArray(pos_location);
-	glVertexAttribPointer(pos_location, 3, GL_FLOAT, GL_FALSE,
-		sizeof(Vertex), (void*)offsetof(Vertex, pos));
-	glEnableVertexAttribArray(uv_location);
-	glVertexAttribPointer(uv_location, 2, GL_FLOAT, GL_FALSE,
-		sizeof(Vertex), (void*)offsetof(Vertex, uv));*/
+	GLint normal_location = program.GetAttributeLocation("vNormal");
 
 	VAO VertexArrayObject;
 	VertexArrayObject.Bind();
@@ -86,11 +106,9 @@ int main() {
 	VertexArrayObject.EnableVertexAttributeArray(uv_location);
 	VertexArrayObject.VertexAttrributePointer(uv_location, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, uv));
 
+	VertexArrayObject.EnableVertexAttributeArray(normal_location);
+	VertexArrayObject.VertexAttrributePointer(normal_location, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
 
-	//GLuint element_buffer;
-	//glGenBuffers(1, &element_buffer);
-	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer);
-	//glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
 	EBO ElementBufferObject(indices, sizeof(indices));
 
@@ -137,7 +155,7 @@ int main() {
 		glUniform1i(utexture_location, 0);
 	};
 
-	Object object(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), "Assets/Models/Monkey.obj", program);
+	Object object(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), "Assets/Models/Monkey.model", program);
 	object.BindUpdater(Update);
 
 	while (!glfwWindowShouldClose(window)) {
@@ -185,7 +203,26 @@ int main() {
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glUniform1i(utexture_location, 0);
 
+		//PhongLightning Uniforms:
+		//Material:
+		glUniform3fv(materialAmbient_location, 1, &material.ambient[0]);
+		glUniform3fv(materialDiffuse_location, 1, &material.diffuse[0]);
+		glUniform3fv(materialSpecular_location, 1, &material.specular[0]);
+		glUniform1f(materialShininess_location, material.shininess);
 		
+		//Light:
+		glUniform3fv(lightPosition_location, 1, &light.position[0]);
+		glUniform3fv(lightAmbient_location, 1, &light.ambient[0]);
+		glUniform3fv(lightDiffuse_location, 1, &light.diffuse[0]);
+		glUniform3fv(lightSpecular_location, 1, &light.specular[0]);
+
+		//Other:
+		glm::vec3 cameraPos = camera.GetPosition();
+		glUniform3fv(uViewPos_location, 1, &cameraPos[0]);
+		//----------
+
+		
+
 		VertexArrayObject.Bind();
 		VertexBufferObject.Bind();
 		ElementBufferObject.Bind();

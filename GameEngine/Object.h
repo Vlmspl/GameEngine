@@ -18,6 +18,7 @@ public:
         program.use();
         GLint vPos_location = program.GetAttributeLocation("vPos");
         GLint vUv_location = program.GetAttributeLocation("vUv");
+        GLint vNormal_location = program.GetAttributeLocation("vNormal");
 
         VertexArrayObject.Bind();
         VertexArrayObject.EnableVertexAttributeArray(vPos_location);
@@ -25,6 +26,9 @@ public:
 
         VertexArrayObject.EnableVertexAttributeArray(vUv_location);
         VertexArrayObject.VertexAttrributePointer(vUv_location, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, uv));
+
+        VertexArrayObject.EnableVertexAttributeArray(vNormal_location);
+        VertexArrayObject.VertexAttrributePointer(vNormal_location, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
     }
 
     // Destructor

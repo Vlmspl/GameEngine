@@ -72,14 +72,16 @@ glm::vec3 CalculateNewRotation(GLFWwindow* window, glm::vec3 oldRotation, float 
 }
 
 //Vertex Structure
-typedef struct Vertex {
-	glm::vec3 pos;
-	glm::vec2 uv;
+struct Vertex {
+	glm::vec3 pos;    // Position
+	glm::vec2 uv;     // UV Coordinates
+	glm::vec3 normal; // Normal vector
 
+	// Operator to compare vertices based on position, UV, and normal
 	bool operator==(const Vertex& other) const {
-		return pos == other.pos && uv == other.uv;
+		return pos == other.pos && uv == other.uv && normal == other.normal;
 	}
-} Vertex;
+};
 
 //Cursor locking
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
@@ -173,11 +175,13 @@ void parseOBJ(const std::string& path, Vertex*& vertices, size_t& vertexCount, G
 	std::ifstream file(path);
 	if (!file.is_open()) {
 		std::cerr << "Error opening file: " << path << std::endl;
-		return; // Return early if file can't be opened
+		return;
 	}
 
+	// Temporary storage for positions, UVs, normals, and final vertex data
 	std::vector<glm::vec3> tempPositions;
 	std::vector<glm::vec2> tempUVs;
+	std::vector<glm::vec3> tempNormals;
 	std::vector<Vertex> tempVertices;
 	std::vector<GLuint> tempIndices;
 
@@ -187,34 +191,47 @@ void parseOBJ(const std::string& path, Vertex*& vertices, size_t& vertexCount, G
 		std::string prefix;
 		s >> prefix;
 
+		// Parse vertex positions
 		if (prefix == "v") {
 			glm::vec3 pos;
 			s >> pos.x >> pos.y >> pos.z;
 			tempPositions.push_back(pos);
 		}
+		// Parse UV coordinates
 		else if (prefix == "vt") {
 			glm::vec2 uv;
 			s >> uv.x >> uv.y;
 			tempUVs.push_back(uv);
 		}
+		// Parse normals
+		else if (prefix == "vn") {
+			glm::vec3 normal;
+			s >> normal.x >> normal.y >> normal.z;
+			tempNormals.push_back(normal);
+		}
+		// Parse faces (handles position, UV, and normal indices)
 		else if (prefix == "f") {
 			std::string vertexData;
 			std::vector<GLuint> faceIndices;
 			while (s >> vertexData) {
 				std::replace(vertexData.begin(), vertexData.end(), '/', ' '); // Replace '/' with space
 				std::istringstream vertexStream(vertexData);
-				GLuint posIndex, uvIndex;
-				vertexStream >> posIndex >> uvIndex;
+				GLuint posIndex, uvIndex, normIndex;
+				vertexStream >> posIndex >> uvIndex >> normIndex;
 
 				// Handle 1-based indexing
 				if (posIndex > 0) posIndex--;
 				if (uvIndex > 0) uvIndex--;
+				if (normIndex > 0) normIndex--;
 
-				// Check for valid indices
-				if (posIndex < tempPositions.size() && uvIndex < tempUVs.size()) {
+				// Check for valid indices and create the vertex
+				if (posIndex < tempPositions.size() && uvIndex < tempUVs.size() && normIndex < tempNormals.size()) {
 					Vertex vertex;
 					vertex.pos = tempPositions[posIndex];
 					vertex.uv = tempUVs[uvIndex];
+					vertex.normal = tempNormals[normIndex];
+
+					// Avoid duplicates by checking if the vertex already exists
 					auto it = std::find(tempVertices.begin(), tempVertices.end(), vertex);
 					if (it == tempVertices.end()) {
 						tempVertices.push_back(vertex);
@@ -426,4 +443,18 @@ public:
 	}
 private:
 	GLuint vaoID;
+};
+
+struct Material {
+	glm::vec3 ambient;
+	glm::vec3 diffuse;
+	glm::vec3 specular;
+	float shininess;
+};
+
+struct Light {
+	glm::vec3 position;
+	glm::vec3 ambient;
+	glm::vec3 diffuse;
+	glm::vec3 specular;
 };
