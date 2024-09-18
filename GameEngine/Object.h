@@ -16,9 +16,9 @@ public:
         ElementBufferObject.LoadData(indices, indexCount * sizeof(GLuint));
 
         program.use();
-        GLint vPos_location = program.GetAttributeLocation("vPos");
-        GLint vUv_location = program.GetAttributeLocation("vUv");
-        GLint vNormal_location = program.GetAttributeLocation("vNormal");
+        GLint vPos_location = 0; // program.GetAttributeLocation("vPos");
+        GLint vUv_location = 1; // program.GetAttributeLocation("vUv");
+        GLint vNormal_location = 2; // program.GetAttributeLocation("vNormal");
 
         VertexArrayObject.Bind();
         VertexArrayObject.EnableVertexAttributeArray(vPos_location);
@@ -37,6 +37,24 @@ public:
         delete[] indices;
     }
 
+    glm::mat4 getModelMatrix() {
+        glm::mat4 model = glm::mat4(1.0f);
+
+        // Apply scaling
+        model = glm::scale(model, Scale);
+
+        // Apply rotation (in degrees)
+        model = glm::rotate(model, glm::radians(Rotation.x), glm::vec3(1, 0, 0)); // Rotate around X-axis
+        model = glm::rotate(model, glm::radians(Rotation.y), glm::vec3(0, 1, 0)); // Rotate around Y-axis
+        model = glm::rotate(model, glm::radians(Rotation.z), glm::vec3(0, 0, 1)); // Rotate around Z-axis
+
+        // Apply translation
+        model = glm::translate(model, Position);
+
+        return model;
+        
+    }
+
     // Render method
     void Render() {
         Program.use();
@@ -48,7 +66,6 @@ public:
 
         glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indexCount), GL_UNSIGNED_INT, nullptr);
 
-        std::cout << "\nRendered?";
     }
 
     // Set a lambda function to update uniform data
@@ -73,6 +90,14 @@ public:
         }
         // Return the cached uniform location
         return uniformLocations[uniformName];
+    }
+
+    void SetPosition(glm::vec3 position) {
+        Position = position;
+    }
+
+    void SetRotation(glm::vec3 rotation) {
+        Rotation = rotation;
     }
 
 private:

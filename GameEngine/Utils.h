@@ -319,6 +319,11 @@ public:
 		return location;
 	}
 
+	GLint GetUniformBlockIndex(const std::string& name) {
+		GLint index = glGetUniformBlockIndex(program, name.c_str());
+		return index;
+	}
+
 private:
 	void checkLinkingErrors() {
 		GLint success;
@@ -457,4 +462,39 @@ struct Light {
 	glm::vec3 ambient;
 	glm::vec3 diffuse;
 	glm::vec3 specular;
+};
+
+class UBO : public Buffer {
+public:
+	// Constructor that sets buffer type to GL_UNIFORM_BUFFER
+	UBO() : Buffer(GL_UNIFORM_BUFFER), bindingPoint(0), size(0) {
+		glGenBuffers(1, &bufferID); // Generate the UBO ID
+	}
+
+	// Initialize the UBO with the size and optionally the initial data
+	void init(GLuint bindingPoint, GLsizeiptr size, void* data = nullptr) {
+		this->bindingPoint = bindingPoint;
+		this->size = size;
+
+		Bind();  // Bind the UBO
+		glBufferData(type, size, data, GL_STATIC_DRAW); // Allocate memory and optionally set data
+		glBindBufferBase(type, bindingPoint, bufferID); // Bind to the uniform block binding point
+		Unbind(); // Unbind the buffer
+	}
+
+	// Update UBO data at a specific offset
+	void update(GLintptr offset, GLsizeiptr size, const void* data) {
+		Bind();  // Bind the UBO
+		glBufferSubData(type, offset, size, data); // Update buffer data
+		Unbind(); // Unbind the buffer
+	}
+
+	// Bind the UBO to a uniform block in the shader program
+	void bind(ShaderProgram program, GLuint blockIndex) {
+		glUniformBlockBinding(program.program, blockIndex, bindingPoint); // Bind the block to the binding point
+	}
+
+private:
+	GLuint bindingPoint;  // The binding point for the UBO
+	GLsizeiptr size;      // Size of the UBO data
 };
