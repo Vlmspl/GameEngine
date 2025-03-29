@@ -1,157 +1,178 @@
-﻿#include <windows.h>
-#include <glad/glad.h>
-#include "GLFW/glfw3.h"
+﻿#define STB_IMAGE_IMPLEMENTATION
+#include "Utilities.h"
 #include <iostream>
-#include <filesystem>
-#include <string>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include "Utils.h"
-#include "Camera.h"
-#include "Object.h"
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+#include "Engine/Core.h"
+#include "Engine/FileSystem.h"
+#include "Engine/Objects.h"
+#include "Engine/Device.h"
+#include "Engine/Renderer.h"
+#include "Scripts/ScriptBehaviour.h"
+
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/string_cast.hpp>
+
+class CameraController : public ScriptBehaviour {
+public:
+	CameraController(Camera* camera) : camera(camera) {};
+	~CameraController() = default;
+
+	void Run() override {
+		Input::Mouse::SetMouseLock(true);
+		Event::Connection updateConnection = Renderer::BeforeRender::OnEvent([&]() {
+			// Get mouse delta for rotation
+			float mouseDeltaX, mouseDeltaY;
+			Input::Mouse::GetDelta(mouseDeltaX, mouseDeltaY);
+
+			// Camera sensitivity (adjust as necessary)
+			const float sensitivity = 0.1f;
+
+			// Apply mouse delta to rotate the camera (invert Y-axis for better control)
+			camera->transform.rotation.x += mouseDeltaX * sensitivity; // Yaw (left-right)
+			camera->transform.rotation.y -= mouseDeltaY * sensitivity; // Pitch (up-down)
+
+			// Update camera vectors based on the new rotation
+			camera->transform.UpdateCameraVectors();
+
+			// Camera movement using keys (W, S, A, D, Q, E)
+			float deltaTime = Time::deltaTime;
+
+			// Movement with WASDQE keys
+			if (Input::KeyPressed(KeyCode::Key_W)) {
+				camera->transform.position += camera->transform.ForwardVector * deltaTime;
+			}
+			if (Input::KeyPressed(KeyCode::Key_S)) {
+				camera->transform.position -= camera->transform.ForwardVector * deltaTime;
+			}
+			if (Input::KeyPressed(KeyCode::Key_A)) {
+				camera->transform.position -= camera->transform.RightVector * deltaTime;
+			}
+			if (Input::KeyPressed(KeyCode::Key_D)) {
+				camera->transform.position += camera->transform.RightVector * deltaTime;
+			}
+			if (Input::KeyPressed(KeyCode::Key_Q)) {
+				camera->transform.position -= camera->transform.UpVector * deltaTime;
+			}
+			if (Input::KeyPressed(KeyCode::Key_E)) {
+				camera->transform.position += camera->transform.UpVector * deltaTime;
+			}
+		});
+	}
+private:
+	Camera* camera;
+};
+
+Camera* camera = nullptr;
 
 
-int main() {
-	// Initialize GLFW
+GLFWwindow* initWindow(const int width, const int height, const char* title) {
 	if (!glfwInit()) {
-		std::cerr << "Failed to initialize GLFW" << std::endl;
-		return -1;
+		std::cerr << "Failed to initialize GLFW!\n";
+		return nullptr;
 	}
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	glfwWindowHint(GLFW_DEPTH_BITS, 24); // Request a 24-bit depth buffer
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-	// Create a windowed mode window and its OpenGL context
-	GLFWwindow* window = glfwCreateWindow(800, 600, "OpenGL Window", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(width, height, title, nullptr, nullptr);
 	if (!window) {
+		std::cerr << "Failed to open GLFW window.\n";
 		glfwTerminate();
-		std::cerr << "Failed to create GLFW window" << std::endl;
-		return -1;
+		return nullptr;
 	}
-	
 
-	// Make the window's context current
 	glfwMakeContextCurrent(window);
-	gladLoadGL();
+
+	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+		std::cerr << "Failed to initialize GLAD!" << std::endl;
+		glfwDestroyWindow(window);
+		glfwTerminate();
+		return nullptr;
+	}
+
+	glEnable(GL_DEBUG_OUTPUT);
+	glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
+	// Simply log the message along with its source, type, and severity for context
+	std::cout << "OpenGL Debug [Source: " << source << ", Type: " << type
+			  << ", ID: " << id << ", Severity: " << severity << "]: " << message << std::endl;
+	}, nullptr);
 
 
-	Shader VertexShader("Assets/Shaders/TestShader.vert", GL_VERTEX_SHADER);
-	Shader FragmentShader("Assets/Shaders/TestShader.frag", GL_FRAGMENT_SHADER);
+	return window;
+}
 
-	ShaderProgram program;
-	program.AttachShader(VertexShader);
-	program.AttachShader(FragmentShader);
-	program.Link();
+int main() {
+	GLFWwindow* window = initWindow(800, 600, "3D engine");
+	if (!window) {
+		return WINDOW_INITIALIZATION_FAIL;
+	}
 
-	const float nearPlane = 0.1f; // Near clipping plane
-	const float farPlane = 1000; // Far clipping plane
+	File* TestFragmentShaderFile = File::find("Assets/Shaders/Test.frag");
+	Shader* TestFragmentShader = new Shader(GL_FRAGMENT_SHADER, *TestFragmentShaderFile);
 
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK); // Cull back faces
-	glFrontFace(GL_CCW); // Define counter-clockwise as front
+	File* TestVertexShaderFile = File::find("Assets/Shaders/Test.vert");
+	Shader* TestVertexShader = new Shader(GL_VERTEX_SHADER, *TestVertexShaderFile);
 
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LESS);
-	glDepthMask(GL_TRUE); // Ensure depth writes are enabled (default)
+	ShaderProgram TestProgram;
+	TestProgram.AttachShader(*TestVertexShader);
+	TestProgram.AttachShader(*TestFragmentShader);
+	TestProgram.LinkProgram();
 
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-	glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-
-	float deltaTime;
-	int width, height;
-	float ratio;
-
-	Camera camera = Camera();
-
-	float lastFrame = 0;
-	GLuint albedo = loadTexture("Assets/Textures/Albedo.png", GL_TEXTURE0, GL_LINEAR, GL_REPEAT);
-	GLuint normal = loadTexture("Assets/Textures/Normal.png", GL_TEXTURE1, GL_LINEAR, GL_REPEAT);
-	GLuint roughness = loadTexture("Assets/Textures/Roughness.png", GL_TEXTURE2, GL_LINEAR, GL_REPEAT);
-
-	
-	auto Update = [&camera, &ratio, &albedo, &normal, &roughness, &nearPlane, &farPlane](Object& object) {
-		glm::mat4 Perspective = glm::perspective(camera.FOV, ratio, nearPlane, farPlane);
-		glm::mat4 View = camera.GetViewMatrix();
-		glm::mat4 Model = object.getModelMatrix();
-
-		glm::vec3 CameraPos = camera.GetPosition();
-
-		GLint uperspective_location = object.RetrieveUniformAddress("uProjection");
-		GLint uview_location = object.RetrieveUniformAddress("uView");
-		GLint umodel_location = object.RetrieveUniformAddress("uModel");
-		GLint ualbedo_location = object.RetrieveUniformAddress("uAlbedo");
-		GLint unormal_location = object.RetrieveUniformAddress("uNormal");
-		GLint uroughness_location = object.RetrieveUniformAddress("uRoughness");
-
-		GLint uviewPos_location = object.RetrieveUniformAddress("viewPos");
-
-		glUniformMatrix4fv(uperspective_location, 1, GL_FALSE, glm::value_ptr(Perspective));
-		glUniformMatrix4fv(uview_location, 1, GL_FALSE, glm::value_ptr(View));
-		glUniformMatrix4fv(umodel_location, 1, GL_FALSE, glm::value_ptr(Model));
-
-		glUniform3fv(uviewPos_location, 1, &CameraPos[0]);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, albedo);
-		glUniform1i(ualbedo_location, 0);
-
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, normal);
-		glUniform1i(unormal_location, 1);
-
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, roughness);
-		glUniform1i(uroughness_location, 2);
+	float vertices[] = {
+		// Position         // Texture Coordinates
+		-0.5f,  0.5f, -1.0f,  0.0f, 1.0f,  // Top-left
+		 0.5f,  0.5f, -1.0f,  1.0f, 1.0f,  // Top-right
+		 0.5f, -0.5f, -1.0f,  1.0f, 0.0f,  // Bottom-right
+		-0.5f, -0.5f, -1.0f,  0.0f, 0.0f   // Bottom-left
 	};
 
-	Object object(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), "Assets/Models/Monkey.model", program);
-	object.BindUpdater(Update);
+	unsigned int indices[] = {
+		0, 1, 2,  // First triangle
+		0, 2, 3   // Second triangle
+	};
+
+
+	VertexBuffer vertexBuffer;
+	vertexBuffer.SetData(vertices, sizeof(vertices), GL_STATIC_DRAW);
+
+	ElementBuffer elementBuffer;
+	elementBuffer.SetData(indices, sizeof(indices), GL_STATIC_DRAW);
+
+
+	VertexArray vertexArray;
+	vertexArray.AddVertexBuffer(vertexBuffer, VertexFormat::PositionUv);
+	vertexArray.AddIndexBuffer(elementBuffer);
+
+	File* textureFile = File::find("Assets/Textures/Test.png");
+	Texture* texture = new Texture(*textureFile, GL_TEXTURE0);
+
+	Camera camera;
+	camera.transform.position = Vector3f(0, 0, -2);
+
+	Input::Initialize(window);
+
+	CameraController cameraController(&camera);
+	cameraController.Run();
+
+	glfwSwapInterval(1);
+
+	glEnable(GL_DEPTH_TEST);
+
+	Renderer::Setup(window, &vertexBuffer, &elementBuffer, &vertexArray, texture, &TestProgram);
 
 	while (!glfwWindowShouldClose(window)) {
-		float currentFrame = glfwGetTime();
-		deltaTime = currentFrame - lastFrame;
-		lastFrame = currentFrame;
-
-		// Poll for and process events
-		glfwPollEvents();
-
-		
-		glfwGetFramebufferSize(window, &width, &height);
-		ratio = width / (float)height;
-
-		glViewport(0, 0, width, height);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glClearColor(0, 0.5, 0.5, 1.0);
-		
-
-		//Update Stuff:
-		glm::vec3 Velocity = GetKeyboardMovement(window, 1);
-
-		glm::vec3 CurrentRotation = camera.GetRotation();
-		glm::vec3 NewRotation = CalculateNewRotation(window, CurrentRotation, 0.25);
-
-		camera.setDeltaTime(deltaTime);
-
-		camera.setMoveSpeed(Velocity);
-		camera.SetRotation(NewRotation);
-
-		cursor_position_callback(window, (double)width / 2, (double)height / 2);
-
-		object.Render();
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		Input::Mouse::Update();
 
 
-		
-		// Swap front and back buffers
-		glfwSwapBuffers(window); //unhandled exception: read access violation
 
+		Renderer::Render(&camera);
 	}
-	// Cleanup
+
 	glfwDestroyWindow(window);
 	glfwTerminate();
 
-	return 0;
+	return SUCCESS;
 }

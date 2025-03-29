@@ -1,13 +1,12 @@
-﻿# CMakeList.txt : CMake project for GameEngine, include source and define
-# project specific logic here.
-#
+﻿# CMakeLists.txt : CMake project for GameEngine, include source and define
+# project-specific logic here.
 
 # Add source to this project's executable.
 file(GLOB SOURCES "*.cpp")
 file(GLOB HEADERS "*.h")
 
-set(GLAD_SRC glad/src/glad.c)
-
+set(GLAD_SRC glad/src/glad.c
+        ../Include/stb/stb_image.h)
 
 add_executable (GameEngine ${SOURCES} ${HEADERS} ${GLAD_SRC})
 
@@ -33,5 +32,12 @@ set(BUILD_DIR "${CMAKE_BINARY_DIR}")
 message(STATUS "Source directory for assets: ${ASSETS_DIR}")
 message(STATUS "Build directory: ${BUILD_DIR}")
 
-# Copy the Shaders directory directly to the build directory
-file(COPY ${ASSETS_DIR} DESTINATION ${BUILD_DIR}/GameEngine)
+# Define the custom target to copy the assets to the build directory
+add_custom_target(copy_assets ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${ASSETS_DIR} ${BUILD_DIR}/GameEngine/Assets
+        COMMENT "Copying assets to the build directory"
+)
+
+# Ensure the 'copy_assets' target runs before the main build target
+add_dependencies(GameEngine copy_assets)
