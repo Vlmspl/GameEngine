@@ -20,7 +20,7 @@ public:
 
 	void Run() override {
 		Input::Mouse::SetMouseLock(true);
-		Event::Connection updateConnection = Renderer::BeforeRender::OnEvent([&]() {
+		Event<>::Connection updateConnection = Renderer::BeforeRender.OnEvent([&]() {
 			// Get mouse delta for rotation
 			float mouseDeltaX, mouseDeltaY;
 			Input::Mouse::GetDelta(mouseDeltaX, mouseDeltaY);

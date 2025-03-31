@@ -2,36 +2,55 @@
 #include <functional>
 #include <vector>
 #include <algorithm>
-#include <iostream>
-#include <optional>
+#include <memory>
 
-// Base Event class
+template <typename... Args>
 class Event {
 public:
-	using Handler = std::function<void()>;  // General Handler type
+	class Connection; // Forward declaration
 
-	virtual ~Event() = default;  // Virtual destructor for polymorphic behavior
+	using Handler = std::function<void(Args...)>;  // General Handler type with Args
 
-	// Pure virtual methods to fire and add handlers for events
-	void Fire();  // To fire the event
-	class Connection OnEvent(Handler handler);  // To add handlers and return connection
+	virtual ~Event() = default;
 
-	// Connection class to manage handler disconnection
+	// Fire method to trigger the event and pass arguments to listeners
+	void Fire(Args... args) {
+		// Clean up disconnected handlers (those that are nullptr)
+		handlers.erase(
+			std::remove_if(handlers.begin(), handlers.end(),
+						   [](const auto& handler) { return !handler; }),
+			handlers.end());
+
+		// Call the handler with the arguments
+		for (auto& handler : handlers) {
+			if (handler) {
+				(*handler)(std::forward<Args>(args)...);
+			}
+		}
+	}
+
+	// Method to add event listeners and return a Connection for disconnection
+	Connection OnEvent(Handler handler) {
+		auto handlerPtr = std::make_shared<Handler>(std::move(handler));
+		handlers.push_back(handlerPtr);
+		return Connection(handlerPtr);  // Return the connection to manage the handler
+	}
+
+	// Nested Connection class for managing handler disconnection
 	class Connection {
 	private:
-		size_t index;
+		std::shared_ptr<Handler> handlerPtr;
 
 	public:
-		Connection(size_t idx) : index(idx) {}
+		Connection(std::shared_ptr<Handler> handler) : handlerPtr(std::move(handler)) {}
 
+		// Disconnect the handler
 		void Disconnect() {
-			if (index < handlers.size()) {
-				handlers[index] = std::nullopt;  // Disconnect the handler by setting it to nullopt
-			}
+			handlerPtr.reset();
 		}
 	};
 
 protected:
-	// Static vector to hold event handlers (specialized in derived classes)
-	static std::vector<std::optional<Handler>> handlers;
+	// Vector to hold event handlers as shared_ptrs
+	std::vector<std::shared_ptr<Handler>> handlers;
 };

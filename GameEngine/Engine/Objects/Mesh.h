@@ -12,7 +12,7 @@ public:
 	VertexArray vertexArray;
 
 	// Constructor: Initialize with empty buffers
-	Mesh() {}
+	Mesh() = default;
 
 	// Set vertex data and index data
 	void SetVertexData(const void* vertexData, GLsizeiptr vertexDataSize,
@@ -34,9 +34,13 @@ public:
 	// Bind and unbind Mesh (VAO will handle everything)
 	void Bind() const {
 		vertexArray.Bind();
+		vertexBuffer.Bind();
+		indexBuffer.Bind();
 	}
 
 	void Unbind() const {
 		vertexArray.Unbind();
+		vertexBuffer.Unbind();
+		indexBuffer.Unbind();
 	}
 };

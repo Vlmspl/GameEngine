@@ -40,6 +40,10 @@ public:
         Bind();
         glBufferData(type, size, data, usage);
     }
+
+    static void Unbind() {
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
 };
 
 // Element Buffer Object (EBO)
@@ -51,6 +55,10 @@ public:
         Bind();
         glBufferData(type, size, data, usage);
     }
+
+    static void Unbind() {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    }
 };
 
 // Uniform Buffer Object (UBO)
@@ -61,6 +69,10 @@ public:
     void SetData(const void* data, GLsizeiptr size, GLenum usage) {
         Bind();
         glBufferData(type, size, data, usage);
+    }
+
+    static void Unbind() {
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
     }
 
     // Bind to a specific binding point for UBO
