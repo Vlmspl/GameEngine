@@ -16,13 +16,13 @@ public:
 	Transform() {
 		position = Vector3f();
 		rotation = Vector3f();
-		scale = Vector3f();
+		scale = Vector3f(1.0f, 1.0f, 1.0f);
 	}
 
 	// Function to return the model matrix (Matrix4d)
-	Matrix4d GetModelMatrix() const {
+	Matrix4f GetModelMatrix() const {
 		// Create the transformation matrix (identity matrix)
-		Matrix4d transform = Matrix4d(1.0f);
+		Matrix4f transform = Matrix4f(1.0f);
 
 		// Apply scaling
 		transform = glm::scale(transform, scale);
@@ -35,10 +35,7 @@ public:
 		// Apply translation
 		transform = glm::translate(transform, position);
 
-		// Cast to Matrix4d (for double precision)
-		Matrix4d transform_d = Matrix4d(transform);
-
-		return transform_d;
+		return transform;
 	}
 };
 

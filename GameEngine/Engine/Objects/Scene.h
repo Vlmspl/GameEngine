@@ -63,3 +63,11 @@ public:
 		return instances;
 	}
 };
+
+template<typename T, typename... Args>
+T *Instance::Create(Scene &targetScene, const std::string &instanceName, Args &&... args) {
+	auto instance = std::make_unique<T>(instanceName, &targetScene, std::forward<Args>(args)...);
+	T* rawPtr = instance.get();  // Get raw pointer before moving ownership
+	targetScene.addInstance(std::move(instance));
+	return rawPtr;
+}

@@ -9,6 +9,7 @@ class Buffer {
 public:
     GLuint ID;
     GLenum type;
+    GLsizeiptr bufferSize;
 
     // Constructor
     Buffer(GLenum bufferType) : type(bufferType) {
@@ -38,6 +39,7 @@ public:
 
     void SetData(const void* data, GLsizeiptr size, GLenum usage) {
         Bind();
+        bufferSize = size;
         glBufferData(type, size, data, usage);
     }
 
@@ -53,6 +55,7 @@ public:
 
     void SetData(const void* data, GLsizeiptr size, GLenum usage) {
         Bind();
+        bufferSize = size;
         glBufferData(type, size, data, usage);
     }
 
@@ -68,6 +71,7 @@ public:
 
     void SetData(const void* data, GLsizeiptr size, GLenum usage) {
         Bind();
+        bufferSize = size;
         glBufferData(type, size, data, usage);
     }
 

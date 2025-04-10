@@ -6,8 +6,8 @@
 #include <algorithm>
 #include <unordered_map>
 #include <glm/glm.hpp>
-#include "../Objects.h"         // Contains Mesh, VertexBuffer, ElementBuffer, VertexArray, etc.
-#include "../Core.h" // Contains VertexFormat, FormatBuilder, etc.
+#include "../Core.h"
+#include "../Objects/Mesh.h"
 
 // **MeshFormat Enum**
 enum class MeshFormat {
@@ -32,7 +32,7 @@ public:
     /// <param name="format">The mesh format (OBJ or GLTF).</param>
     /// <param name="vertexFormat">Desired VertexFormat (e.g. PositionUv or PositionUvNormal).</param>
     /// <returns>A Mesh instance with its buffers set up.</returns>
-    static Mesh LoadMesh(File* file, MeshFormat format, const VertexFormat& vertexFormat) {
+    static Mesh LoadMesh(File* file, MeshFormat format, VertexFormat& vertexFormat) {
         if (!file) {
             std::cerr << "ERROR: Invalid file provided!" << std::endl;
             return Mesh();
@@ -40,7 +40,7 @@ public:
 
         switch (format) {
             case MeshFormat::OBJ:
-                return LoadOBJMesh(*file, vertexFormat);
+                return LoadOBJMesh(*file, &vertexFormat);
             case MeshFormat::GLTF:
                 std::cerr << "GLTF parser not implemented yet." << std::endl;
                 return Mesh();
@@ -54,87 +54,132 @@ private:
     /// <summary>
     /// Loads an OBJ mesh from a File and builds a Mesh based on the desired VertexFormat.
     /// </summary>
-    static Mesh LoadOBJMesh(File& file, const VertexFormat& vertexFormat) {
-        // Read the entire file content into a string.
-        std::string content = file.read();
-        if (content.empty()) {
-            std::cerr << "ERROR: File content is empty or could not be read." << std::endl;
-            return Mesh();
+    static Mesh LoadOBJMesh(File &file, const VertexFormat *vertexFormat) {
+        // **Inclusion options for vertex components; adjust these as needed**
+        bool includePosition;
+        bool includeUV;
+        bool includeNormals;
+
+        if (*vertexFormat == VertexFormat::Position) {
+            includePosition = true;
+            includeUV = false;
+            includeNormals = false;
+        } else if (*vertexFormat == VertexFormat::PositionUv) {
+            includePosition = true;
+            includeUV = true;
+            includeNormals = false;
+        } else if (*vertexFormat == VertexFormat::PositionUvNormal) {
+            includePosition = true;
+            includeUV = true;
+            includeNormals = true;
         }
 
-        // Use an istringstream to read the file line by line.
+        // *Read the entire file content*
+        std::string content = file.read();
         std::istringstream stream(content);
+
+        // **Temporary storages for positions, UVs, and normals**
         std::vector<glm::vec3> tempPositions;
         std::vector<glm::vec2> tempUVs;
-        // The final vertex data is stored in a flat float array.
+        std::vector<glm::vec3> tempNormals;
+
+        // **Final buffers: vertex data (floats) and index data**
         std::vector<float> vertexData;
         std::vector<GLuint> indices;
-        // Deduplication map: key = (positionIndex, uvIndex)
-        std::unordered_map<std::pair<GLuint, GLuint>, GLuint, PairHash> vertexMap;
 
-        // Determine the number of floats per vertex:
-        // **PositionUv**: 5 floats (3 for pos, 2 for uv)
-        // **PositionUvNormal**: 8 floats (3 for pos, 2 for uv, 3 for normal)
-        const GLuint componentCount = (vertexFormat.getAttributes().size() == 2) ? 5 : 8;
+        // **Map for deduplication: key -> vertex index**
+        std::unordered_map<std::string, GLuint> vertexMap;
+
+        // **Calculate stride (number of floats per vertex)**
+        size_t stride = 0;
+        if (includePosition) stride += 3;
+        if (includeUV)       stride += 2;
+        if (includeNormals)  stride += 3;
 
         std::string line;
         while (std::getline(stream, line)) {
-            std::istringstream lineStream(line);
+            std::istringstream s(line);
             std::string prefix;
-            lineStream >> prefix;
+            s >> prefix;
 
-            if (prefix == "v") {
+            if (prefix == "v" && includePosition) {
+                // *Parse vertex positions*
                 glm::vec3 pos;
-                lineStream >> pos.x >> pos.y >> pos.z;
+                s >> pos.x >> pos.y >> pos.z;
                 tempPositions.push_back(pos);
             }
-            else if (prefix == "vt") {
+            else if (prefix == "vt" && includeUV) {
+                // *Parse UV coordinates*
                 glm::vec2 uv;
-                lineStream >> uv.x >> uv.y;
+                s >> uv.x >> uv.y;
                 tempUVs.push_back(uv);
             }
+            else if (prefix == "vn" && includeNormals) {
+                // *Parse normals*
+                glm::vec3 norm;
+                s >> norm.x >> norm.y >> norm.z;
+                tempNormals.push_back(norm);
+            }
             else if (prefix == "f") {
+                // **Parse face definitions**
                 std::vector<GLuint> faceIndices;
                 std::string vertexToken;
-                while (lineStream >> vertexToken) {
-                    // Replace '/' with space to easily extract indices.
+                while (s >> vertexToken) {
+                    // *Replace '/' with space to ease parsing*
                     std::replace(vertexToken.begin(), vertexToken.end(), '/', ' ');
-                    std::istringstream tokenStream(vertexToken);
-                    GLuint posIndex, uvIndex;
-                    tokenStream >> posIndex >> uvIndex;
-                    // Convert 1-based indices to 0-based.
-                    if (posIndex > 0) posIndex--;
-                    if (uvIndex > 0) uvIndex--;
+                    std::istringstream vertexStream(vertexToken);
 
-                    std::pair<GLuint, GLuint> key(posIndex, uvIndex);
-                    if (vertexMap.find(key) == vertexMap.end()) {
-                        // Append position (3 floats)
-                        const glm::vec3& pos = tempPositions[posIndex];
-                        vertexData.push_back(pos.x);
-                        vertexData.push_back(pos.y);
-                        vertexData.push_back(pos.z);
+                    GLuint posIndex = 0, uvIndex = 0, normIndex = 0;
+                    if (includePosition) vertexStream >> posIndex;
+                    if (includeUV)       vertexStream >> uvIndex;
+                    if (includeNormals)  vertexStream >> normIndex;
 
-                        // Append UV (2 floats)
-                        const glm::vec2& uv = tempUVs[uvIndex];
-                        vertexData.push_back(uv.x);
-                        vertexData.push_back(uv.y);
+                    // **Convert from 1-based to 0-based indexing**
+                    if (includePosition && posIndex > 0) posIndex--;
+                    if (includeUV       && uvIndex > 0)   uvIndex--;
+                    if (includeNormals  && normIndex > 0)  normIndex--;
 
-                        // Append default normals if required by the vertex format.
-                        if (componentCount > 5) {
-                            vertexData.push_back(0.0f);
-                            vertexData.push_back(0.0f);
-                            vertexData.push_back(0.0f);
+                // **Retrieve the corresponding data or default to zero**
+                    glm::vec3 pos  = (includePosition && posIndex < tempPositions.size()) ? tempPositions[posIndex] : glm::vec3(0.0f);
+                    glm::vec2 uv   = (includeUV && uvIndex < tempUVs.size())         ? tempUVs[uvIndex]         : glm::vec2(0.0f);
+                    glm::vec3 norm = (includeNormals && normIndex < tempNormals.size())   ? tempNormals[normIndex]   : glm::vec3(0.0f);
+
+                    // **Generate a unique key based on enabled components**
+                    std::string key;
+                    if (includePosition)
+                        key += std::to_string(pos.x) + "_" + std::to_string(pos.y) + "_" + std::to_string(pos.z);
+                    if (includeUV)
+                        key += "_" + std::to_string(uv.x) + "_" + std::to_string(uv.y);
+                    if (includeNormals)
+                        key += "_" + std::to_string(norm.x) + "_" + std::to_string(norm.y) + "_" + std::to_string(norm.z);
+
+                    GLuint vertexIndex;
+                    auto it = vertexMap.find(key);
+                    if (it == vertexMap.end()) {
+                        // **Add a new vertex**
+                        vertexIndex = vertexData.size() / stride;
+                        if (includePosition) {
+                            vertexData.push_back(pos.x);
+                            vertexData.push_back(pos.y);
+                            vertexData.push_back(pos.z);
                         }
-
-                        GLuint newIndex = static_cast<GLuint>(vertexData.size() / componentCount) - 1;
-                        vertexMap[key] = newIndex;
-                        faceIndices.push_back(newIndex);
+                        if (includeUV) {
+                            vertexData.push_back(uv.x);
+                            vertexData.push_back(uv.y);
+                        }
+                        if (includeNormals) {
+                            vertexData.push_back(norm.x);
+                            vertexData.push_back(norm.y);
+                            vertexData.push_back(norm.z);
+                        }
+                        vertexMap[key] = vertexIndex;
                     } else {
-                        faceIndices.push_back(vertexMap[key]);
+                        vertexIndex = it->second;
                     }
+                    faceIndices.push_back(vertexIndex);
                 }
 
-                // Triangulate the face (assuming convex polygons)
+                // **Triangulate the face (supports triangles, quads, etc.)**
                 if (faceIndices.size() >= 3) {
                     for (size_t i = 1; i < faceIndices.size() - 1; ++i) {
                         indices.push_back(faceIndices[0]);
@@ -145,14 +190,10 @@ private:
             }
         }
 
-        // Create a Mesh and populate its buffers.
         Mesh mesh;
-        GLsizeiptr vertexDataSize = static_cast<GLsizeiptr>(vertexData.size() * sizeof(float));
-        GLsizeiptr indexDataSize = static_cast<GLsizeiptr>(indices.size() * sizeof(GLuint));
+        mesh.SetVertexData(vertexData.data(), vertexData.size() * sizeof(float),
+            indices.data(), indices.size() * sizeof(GLuint), *vertexFormat, GL_STATIC_DRAW);
 
-        mesh.SetVertexData(vertexData.data(), vertexDataSize,
-                           indices.data(), indexDataSize,
-                           vertexFormat);
         return mesh;
     }
 };

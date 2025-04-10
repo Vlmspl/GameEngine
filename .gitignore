@@ -77,6 +77,7 @@ StyleCopReport.xml
 *.meta
 *.obj
 !GameEngine/Assets/*.obj
+!cmake-build-debug/GameEngine/Assets/*.obj
 *.iobj
 *.pch
 *.pdb

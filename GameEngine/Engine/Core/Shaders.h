@@ -3,6 +3,7 @@
 #include <string>
 #include <iostream>
 #include <stdexcept>
+#include <any>
 #include <unordered_map>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -93,6 +94,10 @@ public:
         glUseProgram(ID);
     }
 
+    static void UnBind() {
+        glUseProgram(0);
+    }
+
     // Method to delete the program
     void Delete() const {
         glDeleteProgram(ID);
@@ -169,6 +174,33 @@ public:
         GLint location = getUniformLocation(name);
         if (location != -1) {
             glUniformHandleui64vARB(location, value, 0);
+        }
+    }
+
+    void NoTypeSetUniform(const std::string& name, const std::any& value) {
+        GLint location = getUniformLocation(name);
+        if (location == -1) {
+            return;  // Handle invalid uniform location
+        }
+
+        // Check the type and cast appropriately
+        if (value.type() == typeid(int)) {
+            SetUniform(name, std::any_cast<int>(value));
+        } else if (value.type() == typeid(float)) {
+            SetUniform(name, std::any_cast<float>(value));
+        } else if (value.type() == typeid(glm::vec3)) {
+            SetUniform(name, std::any_cast<glm::vec3>(value));
+        } else if (value.type() == typeid(glm::mat4)) {
+            SetUniform(name, std::any_cast<glm::mat4>(value));
+        } else if (value.type() == typeid(GLuint)) {
+            SetUniform(name, std::any_cast<GLuint>(value));
+        } else if (value.type() == typeid(bool)) {
+            SetUniform(name, std::any_cast<bool>(value));
+        } else if (value.type() == typeid(GLuint64)) {
+            SetUniform(name, std::any_cast<GLuint64>(value));
+        } else {
+            // Handle unknown types or throw an error
+            std::cerr << "Unsupported uniform type!" << std::endl;
         }
     }
 };

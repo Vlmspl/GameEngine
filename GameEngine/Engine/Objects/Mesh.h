@@ -1,46 +1,31 @@
 #pragma once
-#include <vector>
+#include <memory>
+#include "Material.h"
 #include "../Core.h"
 
 class Mesh {
 public:
-	// Vertex Buffer and Index Buffer
-	VertexBuffer vertexBuffer;
-	ElementBuffer indexBuffer;
+	std::unique_ptr<float[]> vertexData;
+	std::unique_ptr<uint8_t[]> indexData;
+	GLsizeiptr vertexDataSize;
+	GLsizeiptr indexDataSize;
+	VertexFormat vertexFormat;
+	GLenum usage;
 
-	// VertexArray object
-	VertexArray vertexArray;
+	Mesh() : vertexFormat(VertexFormat::PositionUvNormal) {}
 
-	// Constructor: Initialize with empty buffers
-	Mesh() = default;
+	void SetVertexData(const void* VertexData, GLsizeiptr VertexDataSize,
+					   const void* IndexData, GLsizeiptr IndexDataSize,
+					   VertexFormat VertexFormat, GLenum Usage = GL_STATIC_DRAW) {
+		vertexData = std::make_unique<float[]>(VertexDataSize);
+		std::memcpy(vertexData.get(), VertexData, VertexDataSize);
 
-	// Set vertex data and index data
-	void SetVertexData(const void* vertexData, GLsizeiptr vertexDataSize,
-					   const void* indexData, GLsizeiptr indexDataSize,
-					   const VertexFormat& vertexFormat, GLenum usage = GL_STATIC_DRAW) {
-		// Set data for vertex buffer
-		vertexBuffer.SetData(vertexData, vertexDataSize, usage);
+		indexData = std::make_unique<uint8_t[]>(IndexDataSize);
+		std::memcpy(indexData.get(), IndexData, IndexDataSize);
 
-		// Set data for index buffer
-		indexBuffer.SetData(indexData, indexDataSize, usage);
-
-		// Bind vertex array and add the buffers
-		vertexArray.Bind();
-		vertexArray.AddVertexBuffer(vertexBuffer, vertexFormat);
-		vertexArray.AddIndexBuffer(indexBuffer);
-		vertexArray.Unbind();
-	}
-
-	// Bind and unbind Mesh (VAO will handle everything)
-	void Bind() const {
-		vertexArray.Bind();
-		vertexBuffer.Bind();
-		indexBuffer.Bind();
-	}
-
-	void Unbind() const {
-		vertexArray.Unbind();
-		vertexBuffer.Unbind();
-		indexBuffer.Unbind();
+		vertexDataSize = VertexDataSize;
+		indexDataSize = IndexDataSize;
+		vertexFormat = VertexFormat;
+		usage = Usage;
 	}
 };

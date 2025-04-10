@@ -1,28 +1,37 @@
 #pragma once
+#include <bitset>
 #include <string>
-#include <vector>
-#include <unordered_map>
 #include <memory>
-#include <bits/random.h>
+#include <iomanip>
+#
 
 class Scene;
+
+static std::vector<int> idVector; // Vector storing the IDs (last used ID at the end)
+
 class Instance {
 protected:
     std::string id;     // Unique identifier (byte code-based)
     std::string name;   // Name of the instance
     Scene* scene;       // Scene reference
 
-    // Generates a random byte-code-like unique ID
+    // Generates a unique ID based on the existing table
     static std::string GenerateUniqueID() {
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<int> dist(0, 255);
+        // Generate a new ID by incrementing the last ID
+        int newId = 0;
 
-        std::string uid;
-        for (int i = 0; i < 8; i++) {  // 8-byte random ID
-            uid += static_cast<char>(dist(gen));
+        if (!idVector.empty()) {
+            newId = idVector.back() + 1;  // Increment the last ID in the vector
         }
-        return uid;
+
+        // Add the new ID to the vector
+        idVector.push_back(newId);
+
+        // Encode the ID to a string (we use a bitset for simplicity)
+        std::bitset<64> bitsetId(newId);  // We can use 64 bits (or adjust as needed)
+        std::string idString = bitsetId.to_string(); // Convert to binary string
+
+        return idString; // Return the generated ID as a string
     }
 
 public:
@@ -41,10 +50,5 @@ public:
 
     // Static creation method (One-line instance creation)
     template <typename T, typename... Args>
-    static T* Create(Scene& targetScene, const std::string& instanceName, Args&&... args) {
-        auto instance = std::make_unique<T>(instanceName, &targetScene, std::forward<Args>(args)...);
-        T* rawPtr = instance.get();  // Get raw pointer before moving ownership
-        targetScene.AddInstance(std::move(instance));
-        return rawPtr;
-    }
+    static T* Create(Scene& targetScene, const std::string& instanceName, Args&&... args);
 };

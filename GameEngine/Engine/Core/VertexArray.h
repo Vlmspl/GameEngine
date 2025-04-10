@@ -20,6 +20,10 @@ public:
 
         Attribute(GLuint c, GLenum t, GLboolean n, GLsizei s, const void* p)
             : count(c), type(t), normalized(n), stride(s), pointer(p) {}
+
+        bool operator==(const Attribute &other) const {
+            return (count == other.count) && (type == other.type) && (normalized == other.normalized) && (stride == other.stride);
+        }
     };
 
 private:
@@ -37,6 +41,9 @@ public:
     // Static method to return a new instance of VertexFormat
     static VertexFormat createFromAttributes(const std::vector<Attribute>& attrs) {
         return VertexFormat(attrs);
+    }
+    bool operator==(const VertexFormat& other) const {
+        return attributes == other.attributes;
     }
 };
 

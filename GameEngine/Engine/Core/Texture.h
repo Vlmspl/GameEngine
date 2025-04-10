@@ -1,6 +1,6 @@
 #pragma once
 #include <glad/glad.h>
-#include "../FileSystem.h"
+#include "../FileSystem/File.h"
 #include <stb/stb_image.h>
 #include <iostream>
 
@@ -44,10 +44,8 @@ public:
         }
     }
 
-    void unbind() const {
-        if (!useBindless) {
-            glBindTexture(GL_TEXTURE_2D, 0);
-        }
+    static void UnBind() {
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
     // For bindless mode, get the 64-bit handle.
